@@ -7,7 +7,7 @@ import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.UnknownHostException;
+import java.time.Instant;
 import java.util.*;
 
 import ds.poisson.PoissonProcess;
@@ -16,9 +16,9 @@ public class Peer implements Runnable{
 
     private final InetAddress[] addresses;
 
-    private final Map<InetAddress,ArrayList<String>> words;
+    private final ArrayList<String> words;
 
-    private final Map<InetAddress,Map<InetAddress, Integer>> indexes;
+    private final Map<InetAddress,Integer> indexes;
 
     private final ServerSocket server;
 
@@ -30,7 +30,7 @@ public class Peer implements Runnable{
             while (true){
                 try {
                     Socket client = server.accept();
-                    updateValues(client, addresses, words, indexes.get(client.getInetAddress()));
+                    updateValues(client, indexes.get(client.getInetAddress()));
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
@@ -43,24 +43,14 @@ public class Peer implements Runnable{
     Peer(InetAddress[] addresses) throws IOException {
         server = new ServerSocket(5000);
         this.addresses = addresses;
+        words = new ArrayList<>();
 
         this.indexes = new HashMap<>();
-        for (InetAddress inetAddress : addresses) {
-            indexes.put(inetAddress, new HashMap<>());
-            for (InetAddress address : addresses) {
-                indexes.get(inetAddress).put(address, 0);
-            }
-        }
-
-        InetAddress localHost = InetAddress.getLocalHost();
-
-        words = new HashMap<>();
-        words.put(localHost, new ArrayList<>());
         for (InetAddress address : addresses) {
-            words.put(address, new ArrayList<>());
+            indexes.put(address, 0);
         }
 
-        new Thread(new WordGenerator(words.get(localHost))).start();
+        new Thread(new WordGenerator(words)).start();
         new Thread(new Server()).start();
     }
 
@@ -77,7 +67,7 @@ public class Peer implements Runnable{
                 int randomPeer = (int) (Math.random() * addresses.length);
 
                 Socket socket = new Socket(addresses[randomPeer], 5000);
-                updateValues(socket, addresses, words, indexes.get(addresses[randomPeer]));
+                updateValues(socket, indexes.get(addresses[randomPeer]));
 
             } catch (InterruptedException | IOException e) {
                 throw new RuntimeException(e);
@@ -85,50 +75,42 @@ public class Peer implements Runnable{
         }
     }
 
-    public static void updateValues(Socket client, InetAddress[] addresses, Map<InetAddress, ArrayList<String>> words, Map<InetAddress, Integer> indexes) throws IOException {
+    public void updateValues(Socket client, int index) throws IOException {
 
         BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream()));
         PrintWriter out = new PrintWriter(client.getOutputStream(), true);
 
-        for (InetAddress address : addresses) {
-            synchronized (words.get(address)){
-                if (indexes.get(address) < words.get(address).size()) {
-                    String message =
-                            address.toString() +
-                                    ":" +
-                                    String.join(",", words.get(address).subList(indexes.get(address), words.get(address).size()));
+        // should the synchronized block include all this code? no words can be added while this is running
+        synchronized (words){
+            if (index < words.size()) {
+                String message = String.join(",", words.subList(index, words.size()));
 
-                    System.out.println("sending message:\n\t" + message);
-                    System.out.println("to: " + client.getInetAddress() + "\n");
+                System.out.println("sending message:\n\t" + message);
+                System.out.println("\tto: " + client.getInetAddress() + "at" + Instant.now() + "\n");
 
-                    out.println(message);
-                }else {
-                    System.out.println("no new words to send to " + client.getInetAddress() + "from " + address.toString());
-                    out.println(address + ":");
-                }
-
-                indexes.put(address, words.get(address).size());
+                out.println(message);
+            }else{
+                out.println();
+                System.out.println("no new words to send to " + client.getInetAddress());
             }
-        }
-        out.println("END");
-        out.flush();
 
-        while (true){
             String message = in.readLine();
             if (message == null || message.equals("END")){
-                break;
+                System.out.println("closing connection to " + client.getInetAddress());
+                client.close();
+                throw new RuntimeException("connection closed");
             }
+
             System.out.println("received message:\n\t" + message);
-            String[] split = message.split(":");
+            System.out.println("\tfrom: " + client.getInetAddress() + "at" + Instant.now() + "\n");
 
-            InetAddress address = InetAddress.getByName(split[0]);
-            String[] newWords = split[1].split(",");
+            words.addAll(Arrays.asList(message.split(",")));
+            indexes.put(client.getInetAddress(), words.size());
 
-            synchronized (words.get(address)) {
-                words.get(address).addAll(Arrays.asList(newWords));
-                indexes.put(address, words.get(address).size());
-            }
         }
+
+
+
     }
 
 }
