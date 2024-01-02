@@ -4,26 +4,32 @@ import ds.poisson.PoissonProcess;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Random;
 import java.util.Scanner;
 
 public class WordGenerator implements Runnable{
 
-    private String[] words = new String[10000];
+    private final String[] words = new String[10000];
 
-    private ArrayList<String> list = new ArrayList<>();
+    private final ArrayList<String> list;
 
-    WordGenerator(ArrayList<String> list) {
+    private final FileWriter file;
+
+    WordGenerator(ArrayList<String> list, FileWriter file) {
         try {
+            this.file = file;
             this.list = list;
-            Scanner file = new Scanner(new File("words.txt"));
+            Scanner wordsFile = new Scanner(new File("words.txt"));
             int numWords = 0;
-            while (file.hasNext()) {
-                words[numWords] = file.nextLine();
+            while (wordsFile.hasNext()) {
+                words[numWords] = wordsFile.nextLine();
                 numWords++;
             }
-            System.out.println("Loaded " + numWords + " words.");
+            System.out.println("Loaded " + numWords + " words.\n");
 
         } catch (FileNotFoundException e) {
             throw new RuntimeException(e);
@@ -39,8 +45,13 @@ public class WordGenerator implements Runnable{
 
             try{
                 Thread.sleep((int)t);
-                list.add(words[(int) (Math.random() * words.length)]);
-            } catch (InterruptedException e) {
+                synchronized (list){
+                    list.add(words[(int) (Math.random() * words.length)] + " " + InetAddress.getLocalHost());
+                }
+                file.write("\n" + list.get(list.size() - 1));
+                file.flush();
+                System.out.println("added word:" + words[(int) (Math.random() * words.length)] + "\n");
+            } catch (InterruptedException | IOException e) {
                 System.out.println("thread interrupted");
                 e.printStackTrace(System.out);
             }

@@ -1,9 +1,6 @@
 package ds.entropy;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -22,25 +19,11 @@ public class Peer implements Runnable{
 
     private final ServerSocket server;
 
-    class Server implements Runnable{
-
-        @Override
-        public void run(){
-
-            while (true){
-                try {
-                    Socket client = server.accept();
-                    updateValues(client, indexes.get(client.getInetAddress()));
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-
-        }
-
-    }
+    private final FileWriter file;
 
     Peer(InetAddress[] addresses) throws IOException {
+
+        file = new FileWriter("log.txt");
         server = new ServerSocket(5000);
         this.addresses = addresses;
         words = new ArrayList<>();
@@ -50,8 +33,17 @@ public class Peer implements Runnable{
             indexes.put(address, 0);
         }
 
-        new Thread(new WordGenerator(words)).start();
-        new Thread(new Server()).start();
+        new Thread(new WordGenerator(words,file)).start();
+        new Thread(() -> {
+            while (true){
+                try {
+                    Socket client = server.accept();
+                    updateValues(client, indexes.get(client.getInetAddress()));
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }).start();
     }
 
     public void run() {
@@ -65,10 +57,10 @@ public class Peer implements Runnable{
             try {
                 Thread.sleep((int) t);
                 int randomPeer = (int) (Math.random() * addresses.length);
-
-                Socket socket = new Socket(addresses[randomPeer], 5000);
-                updateValues(socket, indexes.get(addresses[randomPeer]));
-
+                if (indexes.get(addresses[randomPeer]) < words.size()){
+                    Socket socket = new Socket(addresses[randomPeer], 5000);
+                    updateValues(socket, indexes.get(addresses[randomPeer]));
+                }
             } catch (InterruptedException | IOException e) {
                 throw new RuntimeException(e);
             }
@@ -80,7 +72,6 @@ public class Peer implements Runnable{
         BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream()));
         PrintWriter out = new PrintWriter(client.getOutputStream(), true);
 
-        // should the synchronized block include all this code? no words can be added while this is running
         synchronized (words){
             if (index < words.size()) {
                 String message = String.join(",", words.subList(index, words.size()));
@@ -95,7 +86,7 @@ public class Peer implements Runnable{
             }
 
             String message = in.readLine();
-            if (message == null || message.equals("END")){
+            if (message == null){
                 System.out.println("closing connection to " + client.getInetAddress());
                 client.close();
                 throw new RuntimeException("connection closed");
@@ -103,13 +94,17 @@ public class Peer implements Runnable{
 
             System.out.println("received message:\n\t" + message);
             System.out.println("\tfrom: " + client.getInetAddress() + "at" + Instant.now() + "\n");
+            System.out.println(String.join("\n\t", message.split(",")));
 
             words.addAll(Arrays.asList(message.split(",")));
+            file.write("\n\nfrom: " + client.getInetAddress() + "\n\t");
+            file.write(String.join("\n\t", message.split(",")));
+            file.write("\n");
+            file.flush();
+
             indexes.put(client.getInetAddress(), words.size());
 
         }
-
-
 
     }
 
