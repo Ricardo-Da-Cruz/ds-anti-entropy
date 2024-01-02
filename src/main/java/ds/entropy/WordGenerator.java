@@ -2,10 +2,8 @@ package ds.entropy;
 
 import ds.poisson.PoissonProcess;
 
-import javax.swing.plaf.TableHeaderUI;
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Random;
 import java.util.Scanner;
