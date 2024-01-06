@@ -39,6 +39,7 @@ public class Peer implements Runnable{
                 try {
                     Socket client = server.accept();
                     updateValues(client, indexes.get(client.getInetAddress()));
+                    client.close();
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
@@ -60,6 +61,7 @@ public class Peer implements Runnable{
                 if (indexes.get(addresses[randomPeer]) < words.size()){
                     Socket socket = new Socket(addresses[randomPeer], 5000);
                     updateValues(socket, indexes.get(addresses[randomPeer]));
+                    socket.close();
                 }
             } catch (InterruptedException | IOException e) {
                 throw new RuntimeException(e);
