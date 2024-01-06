@@ -1,0 +1,14 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="p4" type="docker-deploy" factoryName="docker-image" server-name="Docker">
+    <deployment type="docker-image">
+      <settings>
+        <option name="imageTag" value="entropy" />
+        <option name="containerName" value="p4" />
+        <option name="entrypoint" value="java -jar peer.jar 172.17.0.3 172.17.0.6 172.17.0.7 " />
+      </settings>
+    </deployment>
+    <method v="2">
+      <option name="RunConfigurationTask" enabled="true" run_configuration_name="p3" run_configuration_type="docker-deploy" />
+    </method>
+  </configuration>
+</component>

@@ -1,0 +1,15 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="p1" type="docker-deploy" factoryName="dockerfile" server-name="Docker">
+    <deployment type="dockerfile">
+      <settings>
+        <option name="imageTag" value="entropy" />
+        <option name="containerName" value="p1" />
+        <option name="entrypoint" value="java -jar peer.jar 172.17.0.3" />
+        <option name="sourceFilePath" value="Dockerfile" />
+      </settings>
+    </deployment>
+    <method v="2">
+      <option name="RunConfigurationTask" enabled="true" run_configuration_name="ds-entropy [package]" run_configuration_type="MavenRunConfiguration" />
+    </method>
+  </configuration>
+</component>
